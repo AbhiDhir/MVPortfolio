@@ -15,7 +15,7 @@ tickers = [stock.replace(".", "") for stock in tickers]
 ## Dowload Data ##
 history = []
 # yfinance only supports donwloading history from 250 stocks at a time
-batchSize = 250
+batchSize = 100
 for i in range(0,len(tickers),batchSize):
     companies = yf.Tickers(" ".join(tickers[i:min(i+batchSize,len(tickers))]))
     history.append(companies.history(start=startDay, end=endDay))

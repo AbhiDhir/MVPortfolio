@@ -1,4 +1,5 @@
 import numpy as np
+import yfinance as yf
 import math
 import itertools
 from scipy import optimize
@@ -11,18 +12,36 @@ from datetime import datetime
 np.set_printoptions(precision=4, suppress=True)
 
 ## Constants ##
-tickers = ["MSFT", "GOOGL", "AMZN", "AAL", "BA", "TWTR"]
-# useSpy = False
-# numCompsSpy = 100
+tickers = ["MSFT", "GOOGL", "AMZN", "AAL", "BA", "TWTR", "TSLA", "APHA"]
+useRandomFromCache = True
+numCompsFromCache = 100
 startDay = "2010-01-01"
 endDay = "2020-08-01"
 startAmount = 1000000
 
-## Download non-cached tickers and add them to cache ##
-
 ## Get Stock Data ##
 history = pickle.load(open('stock_history', 'rb'))
-close_history = history['Close'].dropna(how='all')
+
+## Set up Tickers for random option ##
+if useRandomFromCache and numCompsFromCache > 0 and numCompsFromCache < 505:
+    tickers = np.random.choice(np.array(history['Close'].keys()), numCompsFromCache, replace=False)
+
+## Download non-cached tickers and add them to cache ##
+cacheStartDay = "2010-01-01"
+cacheEndDay = "2020-08-01"
+downloadArray = []
+for ticker in tickers:
+    if ticker not in history['Close'].keys():
+        downloadArray.append(ticker)
+if len(downloadArray) > 0:
+    companies = yf.Tickers(" ".join(downloadArray))
+    new_history = companies.history(start=cacheStartDay, end=cacheEndDay)
+    history = pd.concat([new_history, history], axis=1)
+    pickle.dump(history, open('stock_history', 'wb'))
+
+startDateTime = datetime.strptime(startDay, '%Y-%m-%d')
+endDateTime = datetime.strptime(endDay, '%Y-%m-%d')
+close_history = history['Close'].dropna(how='all')[tickers][startDateTime:endDateTime]
 
 ## Setup index_to_ticker dict ##
 index_to_ticker = {i: ticker for i,ticker in enumerate(tickers)}
@@ -99,15 +118,16 @@ ticker_weights = sorted([(tickers[i], weights[i]) for i in range(len(tickers))],
 print(np.array([(i[0], np.round(i[1], decimals=4)) for i in ticker_weights]))
 
 ## Calculate Shares for each stock at startDay ##
-# For stocks that were not listed at the start day, their initial price is used"
+# For stocks that were not listed at the start day, their initial price is used
 stock_prices = { ticker: close_history[ticker][dateRanges[ticker][0]:] for ticker in tickers}
 shares = {ticker[0]: startAmount*ticker[1]/stock_prices[ticker[0]][0] for ticker in ticker_weights}
 
 ## Create portfolio weighted stock data ##
 data = []
+num = 1000000
 for ticker in ticker_weights:
     startingSharePrice = stock_prices[ticker[0]][0]
-    data.append(np.nan_to_num(np.array(close_history[ticker[0]]*shares[ticker[0]]),startingSharePrice))
+    data.append(np.nan_to_num(np.array(close_history[ticker[0]]*shares[ticker[0]]),nan=startingSharePrice*shares[ticker[0]]))
 data = np.array(data)
 accData = [sum(data[:,i]) for i in range(len(data[0]))]
 y = np.array(accData)
