@@ -23,7 +23,6 @@ startAmount = 1000000
 ## Get Stock Data ##
 history = pickle.load(open('stock_history', 'rb'))
 close_history = history['Close'].dropna(how='all')
-dates = close_history['AAPL'].keys()
 
 ## Setup index_to_ticker dict ##
 index_to_ticker = {i: ticker for i,ticker in enumerate(tickers)}
