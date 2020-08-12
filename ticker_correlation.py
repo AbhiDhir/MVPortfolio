@@ -14,34 +14,38 @@ np.set_printoptions(precision=4, suppress=True)
 ## Constants ##
 tickers = ["MSFT", "GOOGL", "AMZN", "AAL", "BA", "TWTR", "TSLA", "APHA"]
 useRandomFromCache = True
-numCompsFromCache = 100
+numCompsFromCache = 15
 startDay = "2010-01-01"
 endDay = "2020-08-01"
 startAmount = 1000000
+safeIncomeRate = .02
 
 ## Get Stock Data ##
 history = pickle.load(open('stock_history', 'rb'))
-
-## Set up Tickers for random option ##
-if useRandomFromCache and numCompsFromCache > 0 and numCompsFromCache < 505:
-    tickers = np.random.choice(np.array(history['Close'].keys()), numCompsFromCache, replace=False)
-
-## Download non-cached tickers and add them to cache ##
-cacheStartDay = "2010-01-01"
-cacheEndDay = "2020-08-01"
-downloadArray = []
-for ticker in tickers:
-    if ticker not in history['Close'].keys():
-        downloadArray.append(ticker)
-if len(downloadArray) > 0:
-    companies = yf.Tickers(" ".join(downloadArray))
-    new_history = companies.history(start=cacheStartDay, end=cacheEndDay)
-    history = pd.concat([new_history, history], axis=1)
-    pickle.dump(history, open('stock_history', 'wb'))
-
 startDateTime = datetime.strptime(startDay, '%Y-%m-%d')
 endDateTime = datetime.strptime(endDay, '%Y-%m-%d')
-close_history = history['Close'].dropna(how='all')[tickers][startDateTime:endDateTime]
+close_history = history['Close'].dropna(how='all').dropna(how='all', axis=1)[0:][startDateTime:endDateTime]
+
+## Download non-cached tickers and add them to cache ##
+if not useRandomFromCache:
+    cacheStartDay = "2010-01-01"
+    cacheEndDay = "2020-08-01"
+    downloadArray = []
+    for ticker in tickers:
+        if ticker not in history['Close'].keys():
+            downloadArray.append(ticker)
+    if len(downloadArray) > 0:
+        companies = yf.Tickers(" ".join(downloadArray))
+        new_history = companies.history(start=cacheStartDay, end=cacheEndDay)
+        history = pd.concat([new_history, history], axis=1)
+        pickle.dump(history, open('stock_history', 'wb'))
+else:
+    if numCompsFromCache > 0 and numCompsFromCache < len(close_history.keys()):
+        tickers = np.random.choice(np.array(close_history.keys()), numCompsFromCache, replace=False)
+    else:
+        raise Exception(f'Please choose a valid amount of companies (between 0 and {len(close_history.keys())})')
+
+close_history = close_history[tickers]
 
 ## Setup index_to_ticker dict ##
 index_to_ticker = {i: ticker for i,ticker in enumerate(tickers)}
@@ -91,7 +95,6 @@ for pair in list(itertools.combinations(range(len(tickers)),2)):
 def minimizer(weights):
     varianceArray = []
     returnsArray = []
-    safeIncomeRate = 0.02
     for i in range(len(tickers)):
         varianceArray.append((weights[i]**2)*variances[index_to_ticker[i]])
         returnsArray.append(returnsDict[index_to_ticker[i]]*weights[i])
