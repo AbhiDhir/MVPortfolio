@@ -14,7 +14,7 @@ np.set_printoptions(precision=4, suppress=True)
 ## Constants ##
 tickers = ["MSFT", "GOOGL", "AMZN", "AAL", "BA", "TWTR", "TSLA", "APHA"]
 useRandomFromCache = True
-numCompsFromCache = 15
+numCompsFromCache = 500
 startDay = "2010-01-01"
 endDay = "2020-08-01"
 startAmount = 1000000
@@ -114,7 +114,7 @@ bounds = [(0,1) for i in range(len(tickers))]
 
 cons = {'type':'eq', 'fun': add_to_1_constraint}
 # Initialize weights
-x0 = np.array([1/len(tickers) for i in range(len(tickers))])
+x0 = np.random.dirichlet(np.ones(len(tickers)),size=1)
 
 weights = scipy.optimize.minimize(minimizer, x0, bounds=bounds, constraints=cons).x
 ticker_weights = sorted([(tickers[i], weights[i]) for i in range(len(tickers))], key=lambda x:x[1], reverse=True)
